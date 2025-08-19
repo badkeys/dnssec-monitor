@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+#
+# SPDX-License-Identifier: MIT
+#
+# Fetches and stores DNSKEYs and CDNSKEYs for a hostname.
+# Part of badkeys: https://badkeys.info/
+
+import argparse
+import pathlib
+
+import dns.dnssec
+import dns.resolver
+
+ap = argparse.ArgumentParser()
+ap.add_argument("hosts", nargs="+")
+ap.add_argument("-o", "--outdir", help="Output directory (default: out)")
+args = ap.parse_args()
+
+if args.outdir:
+    outdir = args.outdir
+else:
+    outdir = "out"
+
+for hostname in args.hosts:
+    for rectype in ["DNSKEY", "CDNSKEY"]:
+        try:
+            answers = dns.resolver.resolve(hostname, rectype)
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN,
+                dns.resolver.NoNameservers, dns.resolver.LifetimeTimeout):
+            continue
+
+        for rdata in answers:
+            if rdata.protocol != 3:
+                prot = "notdnssec{rdata.protocol}"
+            else:
+                prot = "dnssec"
+
+            if rdata.flags == 256:
+                ktype = "ksk"
+            elif rdata.flags == 257:
+                ktype = "zsk"
+            else:
+                ktype = "flags{rdata.flags}"
+
+            alg = dns.dnssec.algorithm_to_text(rdata.algorithm)
+
+            fn = f"{hostname}_{ktype}.{alg}.{rectype}.{prot}"
+            pathlib.Path(f"{outdir}/{fn}").write_text(str(rdata) + "\n")
