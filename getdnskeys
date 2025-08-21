@@ -30,6 +30,10 @@ for hostname in args.hosts:
             continue
 
         for rdata in answers:
+            # 32 is smallest plausible key size (Ed255519)
+            if len(rdata.key) < 32:
+                continue
+
             if rdata.protocol != 3:
                 prot = f"notdnssec{rdata.protocol}"
             else:
