@@ -31,7 +31,7 @@ for hostname in args.hosts:
 
         for rdata in answers:
             if rdata.protocol != 3:
-                prot = "notdnssec{rdata.protocol}"
+                prot = f"notdnssec{rdata.protocol}"
             else:
                 prot = "dnssec"
 
@@ -40,7 +40,7 @@ for hostname in args.hosts:
             elif rdata.flags == 257:
                 ktype = "zsk"
             else:
-                ktype = "flags{rdata.flags}"
+                ktype = f"flags{rdata.flags}"
 
             alg = dns.dnssec.algorithm_to_text(rdata.algorithm)
 
