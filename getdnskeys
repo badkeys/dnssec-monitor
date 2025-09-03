@@ -6,6 +6,7 @@
 # Part of badkeys: https://badkeys.info/
 
 import argparse
+import os
 import pathlib
 
 import dns.dnssec
@@ -14,12 +15,15 @@ import dns.resolver
 ap = argparse.ArgumentParser()
 ap.add_argument("hosts", nargs="+")
 ap.add_argument("-o", "--outdir", help="Output directory (default: out)")
+ap.add_argument("-p", "--prefix", action="store_true", help="Split output into prefix dirs")
 args = ap.parse_args()
 
 if args.outdir:
     outdir = args.outdir
 else:
     outdir = "out"
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
 
 for hostname in args.hosts:
     for rectype in ["DNSKEY", "CDNSKEY"]:
@@ -48,5 +52,11 @@ for hostname in args.hosts:
 
             alg = dns.dnssec.algorithm_to_text(rdata.algorithm)
 
-            fn = f"{hostname}_{ktype}.{alg}.{rectype}.{prot}"
-            pathlib.Path(f"{outdir}/{fn}").write_text(str(rdata) + "\n")
+            fn = f"{hostname}_{alg}.{ktype}.{rectype}.{prot}"
+            if args.prefix:
+                fp = f"{outdir}/{hostname[0]}"
+                if not os.path.exists(fp):
+                    os.mkdir(fp)
+            else:
+                fp = outdir
+            pathlib.Path(f"{fp}/{fn}").write_text(str(rdata) + "\n")
