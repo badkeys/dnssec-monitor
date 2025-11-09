@@ -1,0 +1,59 @@
+#!/bin/bash
+
+[ -e ~/.badkeystools ] && . ~/.badkeystools
+
+TODAY="$(date -I)"
+MYDIR="$(dirname $0)"
+if [ -z "$DNSSEC_MONITOR_OUTDIR" ]; then
+	OUTDIR="$MYDIR/out-$TODAY"
+else
+	OUTDIR="$DNSSEC_MONITOR_OUTDIR/out-$TODAY"
+fi
+
+if [ -d "$OUTDIR" ]; then
+	echo "$OUTDIR exists already"
+	exit 1
+fi
+mkdir "$OUTDIR"
+
+echo "begin='$(date -Iseconds)'" >>"$OUTDIR/meta.toml"
+
+TMPDIR=$(mktemp -d)
+
+if [ -z "$USE_DOMCOP" ]; then
+	# by default use the Tranco Top 1 Million list
+	TRANCOID=$(curl -s https://tranco-list.eu/top-1m-id)
+	echo "trancoid='$TRANCOID'" >>"$OUTDIR/meta.toml"
+
+	TURL="https://tranco-list.eu/download/daily/tranco_${TRANCOID}-1m.csv.zip"
+	curl -s "$TURL" \
+		>"$TMPDIR/tranco.zip"
+
+	unzip -q -d "$TMPDIR" "$TMPDIR/tranco.zip"
+
+	sed -e 's:\r$::g' -e 's:^[0-9]*,::g' "$TMPDIR/top-1m.csv" \
+		>"$TMPDIR/dom.txt"
+else
+	curl -s https://www.domcop.com/files/top/top10milliondomains.csv.zip \
+		>"$TMPDIR/top10milliondomains.csv.zip"
+	unzip -q -d "$TMPDIR" "$TMPDIR/top10milliondomains.csv.zip"
+
+	tail -n +2 "$TMPDIR/top10milliondomains.csv" |
+		sed -e 's:^"[0-9]*","::g' -e 's:".*::g' \
+			>"$TMPDIR/dom.txt"
+fi
+
+parallel -a "$TMPDIR/dom.txt" -n 15 -j 100 --timeout 300 \
+	"$MYDIR/getdnskeys" -p -o "$OUTDIR/keys"
+
+find "$OUTDIR/keys" -type f -exec badkeys --dnssec {} \+ \
+	2>"$OUTDIR/badkeys-errors.log" \
+	1>"$OUTDIR/badkeys.log"
+
+echo "vulnerable=$(wc -l <$OUTDIR/badkeys.log)" >>"$OUTDIR/meta.toml"
+echo "errors=$(wc -l <$OUTDIR/badkeys-errors.log)" >>"$OUTDIR/meta.toml"
+
+echo "end='$(date -Iseconds)'" >>"$OUTDIR/meta.toml"
+
+# Output badkeys results at the end
+cat "$OUTDIR/badkeys.log"
