@@ -1,0 +1,83 @@
+#!/usr/bin/python3
+
+import argparse
+import os
+import pathlib
+import tomllib
+
+ap = argparse.ArgumentParser()
+ap.add_argument("path")
+args = ap.parse_args()
+
+with open(f"{args.path}/meta.toml", "rb") as fp:
+    dat = tomllib.load(fp)
+
+scandate = dat["begin"][0:10]
+
+html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<title>DNSSEC scan {scandate}</title>
+<style>table,td{{border: 1px solid black}}table{{margin:auto}}body{{text-align:center}}</style>
+</head><body>
+<h1>badkeys DNSSEC scan {scandate}</h1>
+"""
+
+if "toplist" not in dat:
+    toplist = "Tranco"
+    if "trancoid" in dat:
+        toplist += f' ({dat["trancoid"]})'
+else:
+    toplist = dat["toplist"]
+
+html += f"<table><tr><td>List:</td><td>{toplist}</td></tr>\n"
+html += f"<tr><td>Scan start:</td><td>{dat['begin']}</td></tr>\n"
+html += f"<tr><td>Scan end:</td><td>{dat['end']}</td></tr></table>\n"
+
+html += "<h2>Vulnerable keys</h2>\n"
+html += "<table>"
+
+bklog = pathlib.Path(f"{args.path}/badkeys.log").read_text()
+results = {}
+for x in bklog.strip().split("\n"):
+    vuln = x.split(" ", 1)[0]
+    if vuln not in results:
+        results[vuln] = 0
+    results[vuln] += 1
+
+for k in sorted(results, key=results.get, reverse=True):
+    html += f"<tr><td>{results[k]}</td><td>{k}</td></tr>\n"
+
+html += "</table>"
+
+errlog = pathlib.Path(f"{args.path}/badkeys-errors.log").read_text()
+unparseable = unsupported = 0
+for x in errlog.strip().split("\n"):
+    if x.startswith("WARNING: Unparseable input"):
+        unparseable += 1
+    elif x.startswith("WARNING: Unsupported key type"):
+        unsupported += 1
+    else:
+        errmsg = "ERROR: badkeys-errors.log contains unexpected lines"
+        raise ValueError(errmsg)
+
+html += f"<p>{unparseable} keys could not be parsed (corrpution).</p>\n"
+html += f"<p>{unsupported} keys with unsupported key types.</p>\n"
+
+html += "<h2>Key stats</h2>\n"
+html += "<table>"
+
+ktypes = {}
+for _, _, names in os.walk(f"{args.path}/keys/"):
+    for fn in names:
+        ktype = fn.split("_", 1)[1].split(".", 1)[0]
+        if ktype not in ktypes:
+            ktypes[ktype] = 0
+        ktypes[ktype] += 1
+
+for k in sorted(ktypes, key=ktypes.get, reverse=True):
+    html += f"<tr><td>{ktypes[k]}</td><td>{k}</td></tr>\n"
+html += "</table>"
+
+html += "<p><em>Created with <a href='https://badkeys.info/'>badkeys</a></em></p>\n"
+html += "</body></html>"
+
+print(html)
