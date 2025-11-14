@@ -22,6 +22,7 @@ TMPDIR=$(mktemp -d)
 
 if [ -z "$USE_DOMCOP" ]; then
 	# by default use the Tranco Top 1 Million list
+	echo "toplist='Tranco'" >>"$OUTDIR/meta.toml"
 	TRANCOID=$(curl -s https://tranco-list.eu/top-1m-id)
 	echo "trancoid='$TRANCOID'" >>"$OUTDIR/meta.toml"
 
@@ -34,6 +35,7 @@ if [ -z "$USE_DOMCOP" ]; then
 	sed -e 's:\r$::g' -e 's:^[0-9]*,::g' "$TMPDIR/top-1m.csv" \
 		>"$TMPDIR/dom.txt"
 else
+	echo "toplist='DomCop'" >>"$OUTDIR/meta.toml"
 	curl -s https://www.domcop.com/files/top/top10milliondomains.csv.zip \
 		>"$TMPDIR/top10milliondomains.csv.zip"
 	unzip -q -d "$TMPDIR" "$TMPDIR/top10milliondomains.csv.zip"
