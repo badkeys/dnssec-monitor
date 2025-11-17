@@ -68,7 +68,7 @@ for x in errlog.strip().split("\n"):
         errmsg = "ERROR: badkeys-errors.log contains unexpected lines"
         raise ValueError(errmsg)
 
-html += f"<p>{unparseable} keys could not be parsed (corrpution).</p>\n"
+html += f"<p>{unparseable} keys could not be parsed (corrupution).</p>\n"
 html += f"<p>{unsupported} keys with unsupported key types.</p>\n"
 
 html += "<h2>Key stats</h2>\n"
