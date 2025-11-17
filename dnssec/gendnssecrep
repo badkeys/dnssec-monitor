@@ -18,6 +18,9 @@ with open(f"{args.path}/meta.toml", "rb") as fp:
 
 scandate = dat["begin"][0:10]
 
+CSSDEFAULT = ("<style>table,td{{border: 1px solid black}}"
+              "table{{margin:auto}}body{{text-align:center}}</style>")
+
 html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <title>DNSSEC scan {scandate}</title>
 """
@@ -25,10 +28,10 @@ html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 if args.css:
     html += f'<link rel="stylesheet" href="{args.css}">\n'
 else:
-    html += "<style>table,td{{border: 1px solid black}}table{{margin:auto}}body{{text-align:center}}</style>"
+    html += CSSDEFAULT
 
 html += "</head><body><main>"
-html += "<h1>badkeys DNSSEC scan {scandate}</h1>"
+html += f"<h1>badkeys DNSSEC scan {scandate}</h1>"
 
 if "toplist" not in dat:
     toplist = "Tranco"
@@ -68,7 +71,7 @@ for x in errlog.strip().split("\n"):
         errmsg = "ERROR: badkeys-errors.log contains unexpected lines"
         raise ValueError(errmsg)
 
-html += f"<p>{unparseable} keys could not be parsed (corrupution).</p>\n"
+html += f"<p>{unparseable} keys could not be parsed (corruption).</p>\n"
 html += f"<p>{unsupported} keys with unsupported key types.</p>\n"
 
 html += "<h2>Key stats</h2>\n"
