@@ -48,6 +48,7 @@ else
 			>"$TMPDIR/dom.txt"
 fi
 
+mkdir "$OUTDIR/keys"
 parallel -a "$TMPDIR/dom.txt" -n 15 -j 100 --timeout 300 \
 	"$MYDIR/getdnskeys" -p -o "$OUTDIR/keys"
 

@@ -23,7 +23,7 @@ if args.outdir:
 else:
     outdir = "out"
 if not os.path.exists(outdir):
-    os.mkdir(outdir)
+    os.makedirs(outdir, exist_ok=True)
 
 for hostname in args.hosts:
     for rectype in ["DNSKEY", "CDNSKEY"]:
@@ -56,7 +56,7 @@ for hostname in args.hosts:
             if args.prefix:
                 fp = f"{outdir}/{hostname[0]}"
                 if not os.path.exists(fp):
-                    os.mkdir(fp)
+                    os.makedirs(fp, exist_ok=True)
             else:
                 fp = outdir
             pathlib.Path(f"{fp}/{fn}").write_text(str(rdata) + "\n")
