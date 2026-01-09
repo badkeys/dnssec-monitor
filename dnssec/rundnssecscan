@@ -65,3 +65,5 @@ $MYDIR/gendnssecrep "$OUTDIR" >"$OUTDIR/dnssec-report-$TODAY.html"
 
 # Output badkeys results at the end
 cat "$OUTDIR/badkeys.log"
+
+rm -r "$TMPDIR"
