@@ -1,0 +1,19 @@
+Dear Sir or Madam,
+
+I would like to report a security issue.
+
+A DNSSEC key configured for {{hostname}} is insecure.
+
+{% if keyurl is not none -%}
+You can find the private hey here:
+  {{keyurl}}
+{% endif %}
+
+I would suggest that you replace this key with a fresh one or remove the
+DNS record if it is unused.
+
+This was discovered with the badkeys tool.
+
+Yours faithfully,
+--
+{{footer}}

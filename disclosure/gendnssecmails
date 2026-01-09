@@ -1,0 +1,71 @@
+#!/usr/bin/python3
+#
+# SPDX-License-Identifier: MIT
+# Part of badkeys: https://badkeys.info/
+
+import argparse
+import email.message
+import os
+import pathlib
+import sys
+import tomllib
+
+import badkeys
+import jinja2
+import sectxtparse
+
+ap = argparse.ArgumentParser()
+ap.add_argument("dirs", nargs="+")
+ap.add_argument("-o", "--outdir", default="mails-dnssec")
+args = ap.parse_args()
+
+if os.path.exists(args.outdir):
+    sys.exit(f"ERROR: Outdir {args.outdir} already exists!")
+
+with open(os.path.expanduser("~/.badkeystools"), "rb") as fp:
+    bkconfig = tomllib.load(fp)
+
+os.mkdir(args.outdir)
+
+for logdir in args.dirs:
+    print(logdir)
+    logfile = os.path.join(logdir, "badkeys.log")
+    logdata = pathlib.Path(logfile).read_text()
+    logdata = logdata.strip().split("\n")
+    for line in logdata:
+        emails = []
+
+        el = line.split(" ")
+        vuln = el[0]
+        keyfp = el[-1].split("/keys/")[-1]
+        # FIXME: make sure hostname contains no unusual chars
+        hostname = keyfp.split("_")[0].split("/")[-1]
+
+        emails = sectxtparse.getreportingemails(hostname)
+
+        print(f"INFO: Reporting {hostname} to {','.join(emails)}")
+
+        # verifying key is vulnerable
+        keypath = os.path.join(logdir, "keys", keyfp)
+        rawkey = pathlib.Path(keypath).read_text()
+        r = badkeys.checkdnskey(rawkey, checks=badkeys.allchecks)
+        keyurl = None
+        if "blocklist" in r["results"]:
+            keyurl, _ = badkeys.allkeys.urllookup(r["results"]["blocklist"]["blid"],
+                                                  r["results"]["blocklist"]["lookup"])
+
+        rawtemplate = pathlib.Path("templates/dnssec.txt").read_text()
+        mailtemplate = jinja2.Template(rawtemplate)
+        mailcontent = mailtemplate.render(hostname=hostname, keyurl=keyurl,
+                                          footer=bkconfig["DISCLOSURE_FOOTER"])
+
+        msg = email.message.EmailMessage()
+        msg.set_content(mailcontent)
+        msg["Subject"] = f"Insecure DNSSEC key configured for {hostname}"
+        msg["To"] = ", ".join(emails)
+        msg["From"] = bkconfig["DISCLOSURE_FROM"]
+        if "DISCLOSURE_CC" in bkconfig:
+            msg["Cc"] = bkconfig["DISCLOSURE_CC"]
+
+        outpath = os.path.join(args.outdir, hostname)
+        pathlib.Path(outpath).write_text(str(msg))
